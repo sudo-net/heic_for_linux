@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import configparser
 import os
 import sys
@@ -13,10 +14,11 @@ import pgeocode
 from astral import LocationInfo
 from astral.sun import elevation, azimuth, noon
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.ini")
-PID_FILE = os.path.join(BASE_DIR, "daemon.pid")
-LOG_FILE = os.path.join(BASE_DIR, "daemon.log")
+DATA_DIR = os.path.expanduser("~/.local/share/heic_for_linux")
+EXTRACTED_DIR = os.path.join(DATA_DIR, "extracted")
+CONFIG_FILE = os.path.join(DATA_DIR, "config.ini")
+PID_FILE = os.path.join(DATA_DIR, "daemon.pid")
+LOG_FILE = os.path.join(DATA_DIR, "daemon.log")
 
 
 def log(msg):
@@ -44,6 +46,7 @@ def check_already_running():
 
 
 def write_pid():
+    os.makedirs(DATA_DIR, exist_ok=True)
     with open(PID_FILE, "w") as f:
         f.write(str(os.getpid()))
 
@@ -59,12 +62,15 @@ def cleanup_pid(*args):
 
 def prepare_wallpaper_images(wallpaper_path):
     if os.path.isfile(wallpaper_path) and wallpaper_path.lower().endswith(".heic"):
-        folder_name = wallpaper_path.rsplit('.', 1)[0] + "_extracted"
-        if os.path.exists(folder_name):
+        os.makedirs(EXTRACTED_DIR, exist_ok=True)
+        base_name = os.path.splitext(os.path.basename(wallpaper_path))[0]
+        folder_name = os.path.join(EXTRACTED_DIR, f"{base_name}_extracted")
+
+        if os.path.exists(folder_name) and os.listdir(folder_name):
             return folder_name
 
         log(f"-> Creating extraction folder: {folder_name}")
-        os.makedirs(folder_name)
+        os.makedirs(folder_name, exist_ok=True)
         log("-> Extracting images from HEIC...")
         output_pattern = os.path.join(folder_name, "frame.jpg")
 
@@ -86,13 +92,22 @@ def extract_apple_metadata(wallpaper_path):
             capture_output=True, text=False, check=True
         )
         b64_data = result.stdout.strip()
-        if not b64_data:
-            return None
-
-        plist_bytes = base64.b64decode(b64_data)
-        return plistlib.loads(plist_bytes)
+        if b64_data:
+            return plistlib.loads(base64.b64decode(b64_data))
     except Exception:
-        return None
+        pass
+
+    try:
+        import re
+        with open(wallpaper_path, "rb") as f:
+            data = f.read()
+        match = re.search(rb'apple_desktop:solar[=>"\'\s]+([A-Za-z0-9+/=\s]+?)[<"\']', data)
+        if match:
+            b64_clean = re.sub(rb'\s+', b'', match.group(1))
+            return plistlib.loads(base64.b64decode(b64_clean))
+    except Exception:
+        pass
+    return None
 
 
 def init_location_observer(zip_code, country="DE"):
@@ -122,12 +137,8 @@ def find_best_image_match(current_alt, current_az, max_alt_today, metadata):
     best_image_index = 0
     smallest_difference = float('inf')
 
-    # Höchsten Sonnenstand in den HEIC-Metadaten ermitteln (meist Sommer ~65-75°)
     max_meta_alt = max((item['a'] for item in metadata['si']), default=65.0)
 
-    # Jahreszeiten-Skalierung: Im Herbst/Winter steigt die Sonne mittags deutlich
-    # flacher als in Apples Sommer-Metadaten. Wir skalieren positive Werte proportional,
-    # damit mittags auch im Winter die echten Mittagsbilder erreicht werden.
     if current_alt > 0.0 and max_alt_today > 5.0 and max_meta_alt > max_alt_today:
         effective_alt = current_alt * (max_meta_alt / max_alt_today)
     else:
@@ -144,9 +155,6 @@ def find_best_image_match(current_alt, current_az, max_alt_today, metadata):
         diff_alt = abs(effective_alt - img_alt)
         diff_az = min(abs(current_az - img_az), 360 - abs(current_az - img_az))
 
-        # 1. Tageshälften-Sperre (Ost vs. West):
-        # Verhindert, dass am Morgen (Azimut < 180°) ein Abendbild (img_az > 200°)
-        # gewählt wird oder am Abend (Azimut >= 180°) ein Morgenbild (img_az < 160°).
         hemisphere_penalty = 0
         if current_alt > -12.0 and img_alt > -12.0:
             if is_morning and img_az > 200.0:
@@ -154,9 +162,6 @@ def find_best_image_match(current_alt, current_az, max_alt_today, metadata):
             elif not is_morning and img_az < 160.0:
                 hemisphere_penalty = 500
 
-        # 2. Horizont-Sperre:
-        # Erst nach Ende der Dämmerung (unter -8°) werden Tag-/Dämmerungsbilder
-        # (über -2°) blockiert; tagsüber (über 0°) werden tiefe Nachtbilder blockiert.
         horizon_penalty = 0
         if current_alt < -8.0 and img_alt > -2.0:
             horizon_penalty = 1000
@@ -204,6 +209,7 @@ def load_configuration():
 
 
 if __name__ == "__main__":
+    os.makedirs(DATA_DIR, exist_ok=True)
     check_already_running()
     signal.signal(signal.SIGTERM, cleanup_pid)
     signal.signal(signal.SIGINT, cleanup_pid)
@@ -218,7 +224,7 @@ if __name__ == "__main__":
     zip_code = my_config.get("Location", "zip_code")
     country = my_config.get("Location", "country", fallback="DE")
 
-    log("--- heic_for_linux: Daemon started ---")
+    log("--- heic_for_linux v0.1.0: Daemon started ---")
 
     final_folder = prepare_wallpaper_images(path)
     metadata = extract_apple_metadata(path)
@@ -248,4 +254,3 @@ if __name__ == "__main__":
             last_theme_is_light = is_currently_light
 
         time.sleep(300)
-

@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 import sys
 import os
 import time
 import signal
+import shutil
 import subprocess
 import configparser
 import gi
@@ -11,18 +13,25 @@ gi.require_version('Adw', '1')
 gi.require_version('Gio', '2.0')
 from gi.repository import Gtk, Adw, Gio
 
+APP_ID = "io.github.sudo_net.heic_for_linux"
+APP_VERSION = "0.1.0"
+IS_FLATPAK = os.path.exists("/.flatpak-info")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.ini")
-PID_FILE = os.path.join(BASE_DIR, "daemon.pid")
-DAEMON_SCRIPT = os.path.join(BASE_DIR, "daemon.py")
-ICON_PATH = os.path.join(BASE_DIR, "icon.svg")
+DATA_DIR = os.path.expanduser("~/.local/share/heic_for_linux")
+WALLPAPER_STORE = os.path.join(DATA_DIR, "wallpapers")
+CONFIG_FILE = os.path.join(DATA_DIR, "config.ini")
+PID_FILE = os.path.join(DATA_DIR, "daemon.pid")
+DAEMON_SCRIPT = "/app/bin/heic-daemon" if IS_FLATPAK else os.path.join(BASE_DIR, "daemon.py")
+ICON_PATH = APP_ID if IS_FLATPAK else os.path.join(BASE_DIR, "icon.svg")
+
 AUTOSTART_DIR = os.path.expanduser("~/.config/autostart")
-AUTOSTART_FILE = os.path.join(AUTOSTART_DIR, "heic_for_linux_daemon.desktop")
+AUTOSTART_FILE = os.path.join(AUTOSTART_DIR, f"{APP_ID}.daemon.desktop")
 
 
-class HeicForGnomeApp(Adw.Application):
+class HeicForLinuxApp(Adw.Application):
     def __init__(self):
-        super().__init__(application_id='org.gnome.HeicForGnome',
+        super().__init__(application_id=APP_ID,
                          flags=Gio.ApplicationFlags.FLAGS_NONE)
 
     def do_activate(self):
@@ -34,7 +43,10 @@ class HeicWindow(Adw.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.set_title("HEIC for Linux")
+        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(WALLPAPER_STORE, exist_ok=True)
+
+        self.set_title(f"HEIC for Linux (v{APP_VERSION})")
         self.set_default_size(520, 560)
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -59,14 +71,12 @@ class HeicWindow(Adw.ApplicationWindow):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         clamp.set_child(box)
 
-        # --- Sektion 1: Hintergrunddienst & Autostart ---
         daemon_group = Adw.PreferencesGroup(
             title="Hintergrunddienst",
             description="Steuert den automatischen Wechsel von Wallpaper und Dark/Light-Mode."
         )
         box.append(daemon_group)
 
-        # Schalter 1: Live-Dienst
         self.row_daemon = Adw.ActionRow(title="Automatischer Wechsel", subtitle="Status wird geprüft...")
         daemon_group.add(self.row_daemon)
 
@@ -75,10 +85,9 @@ class HeicWindow(Adw.ApplicationWindow):
         self.row_daemon.add_suffix(self.switch_daemon)
         self.row_daemon.set_activatable_widget(self.switch_daemon)
 
-        # Schalter 2: System-Autostart beim Login
         self.row_autostart = Adw.ActionRow(
             title="Beim Systemstart automatisch starten",
-            subtitle="Startet den Hintergrunddienst direkt bei der GNOME-Anmeldung"
+            subtitle="Startet den Hintergrunddienst direkt bei der Anmeldung"
         )
         daemon_group.add(self.row_autostart)
 
@@ -87,7 +96,6 @@ class HeicWindow(Adw.ApplicationWindow):
         self.row_autostart.add_suffix(self.switch_autostart)
         self.row_autostart.set_activatable_widget(self.switch_autostart)
 
-        # --- Sektion 2: Datei & Standort ---
         pref_group = Adw.PreferencesGroup(
             title="Konfiguration",
             description="Wähle dein dynamisches Apple HEIC-Hintergrundbild und deinen Standort."
@@ -119,7 +127,6 @@ class HeicWindow(Adw.ApplicationWindow):
         self.entry_country.set_text("DE")
         self.row_country.add_suffix(self.entry_country)
 
-        # --- Sektion 3: Speichern-Button ---
         btn_save = Gtk.Button(label="Einstellungen speichern und anwenden")
         btn_save.add_css_class("pill")
         btn_save.add_css_class("suggested-action")
@@ -144,6 +151,8 @@ class HeicWindow(Adw.ApplicationWindow):
         self.toast_overlay.add_toast(toast)
 
     def get_python_executable(self):
+        if IS_FLATPAK:
+            return sys.executable
         venv_python = os.path.join(BASE_DIR, "venv", "bin", "python3")
         if os.path.exists(venv_python):
             return venv_python
@@ -221,13 +230,18 @@ class HeicWindow(Adw.ApplicationWindow):
     def on_autostart_toggled(self, switch, gparam):
         if switch.get_active():
             os.makedirs(AUTOSTART_DIR, exist_ok=True)
-            python_bin = self.get_python_executable()
+            if IS_FLATPAK:
+                exec_cmd = f"flatpak run --command=heic-daemon {APP_ID}"
+            else:
+                python_bin = self.get_python_executable()
+                exec_cmd = f"{python_bin} {DAEMON_SCRIPT}"
+
             desktop_content = (
                 "[Desktop Entry]\n"
                 "Type=Application\n"
                 "Name=HEIC for Linux Daemon\n"
                 "Comment=Dynamischer HEIC-Hintergrunddienst\n"
-                f"Exec={python_bin} {DAEMON_SCRIPT}\n"
+                f"Exec={exec_cmd}\n"
                 f"Icon={ICON_PATH}\n"
                 "Terminal=false\n"
                 "X-GNOME-Autostart-enabled=true\n"
@@ -271,7 +285,12 @@ class HeicWindow(Adw.ApplicationWindow):
         try:
             file = dialog.open_finish(result)
             if file:
-                self.row_file.set_subtitle(file.get_path())
+                selected_path = file.get_path()
+                if selected_path and os.path.isfile(selected_path):
+                    dest_path = os.path.join(WALLPAPER_STORE, os.path.basename(selected_path))
+                    if os.path.abspath(selected_path) != os.path.abspath(dest_path):
+                        shutil.copy2(selected_path, dest_path)
+                    self.row_file.set_subtitle(dest_path)
         except Exception:
             pass
 
@@ -298,6 +317,5 @@ class HeicWindow(Adw.ApplicationWindow):
 
 
 if __name__ == "__main__":
-    app = HeicForGnomeApp()
+    app = HeicForLinuxApp()
     app.run(sys.argv)
-

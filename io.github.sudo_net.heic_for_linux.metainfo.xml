@@ -28,6 +28,13 @@
     </ul>
   </description>
   <launchable type="desktop-id">io.github.sudo_net.heic_for_linux.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main configuration window</caption>
+      <caption xml:lang="de">Hauptfenster zur Konfiguration</caption>
+      <image>https://raw.githubusercontent.com/sudo-net/heic_for_linux/main/screenshot.png</image>
+    </screenshot>
+  </screenshots>
   <url type="homepage">https://github.com/sudo-net/heic_for_linux</url>
   <url type="bugtracker">https://github.com/sudo-net/heic_for_linux/issues</url>
   <content_rating type="oars-1.1" />
