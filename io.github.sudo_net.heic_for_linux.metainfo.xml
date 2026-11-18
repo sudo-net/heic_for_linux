@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.sudo_net.heic_for_linux</id>
+  <name>HEIC for Linux</name>
+  <summary>Dynamic Apple HEIC wallpapers with astronomical precision</summary>
+  <summary xml:lang="de">Dynamische Apple HEIC-Hintergrundbilder mit astronomischer Präzision</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.sudo_net">
+    <name>sudo-net</name>
+  </developer>
+  <description>
+    <p>
+      HEIC for Linux brings macOS dynamic HEIC wallpapers to the Linux desktop. It reads the embedded Apple solar metadata from .heic files and calculates the exact sun elevation and azimuth for your postal code offline.
+    </p>
+    <p xml:lang="de">
+      HEIC for Linux bringt dynamische macOS HEIC-Hintergrundbilder auf den Linux-Desktop. Es liest die eingebetteten Apple-Sonnenstandsdaten aus .heic-Dateien aus und berechnet Sonnenhöhe und Azimut für deine Postleitzahl komplett offline.
+    </p>
+    <p>
+      Features in version 0.1.0 (Beta):
+    </p>
+    <ul>
+      <li>Extracts frames and solar metadata from dynamic Apple HEIC files</li>
+      <li>Calculates local solar elevation and azimuth offline via postal code</li>
+      <li>East/West hemisphere lock and seasonal winter sun scaling</li>
+      <li>Automatically switches GNOME background and Light/Dark theme</li>
+      <li>Currently optimized for the GNOME desktop (support for KDE Plasma planned)</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.sudo_net.heic_for_linux.desktop</launchable>
+  <url type="homepage">https://github.com/sudo-net/heic_for_linux</url>
+  <url type="bugtracker">https://github.com/sudo-net/heic_for_linux/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2026-11-18">
+      <description>
+        <p>Initial public beta release (0.1.0) with GNOME support, offline solar calculation, seasonal scaling, and autostart daemon.</p>
+      </description>
+    </release>
+  </releases>
+</component>

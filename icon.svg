@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="day" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3584e4"/>
+      <stop offset="100%" stop-color="#99c1f1"/>
+    </linearGradient>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c2438"/>
+      <stop offset="100%" stop-color="#3d3846"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect x="8" y="8" width="112" height="112" rx="24"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect x="8" y="8" width="56" height="112" fill="url(#day)"/>
+    <rect x="64" y="8" width="56" height="112" fill="url(#night)"/>
+    <circle cx="38" cy="42" r="14" fill="#f6d32d"/>
+    <circle cx="90" cy="42" r="12" fill="#f8e45c"/>
+    <circle cx="96" cy="38" r="10" fill="url(#night)"/>
+    <polygon points="8,120 42,68 78,120" fill="#26a269"/>
+    <polygon points="48,120 88,62 120,120" fill="#241f31"/>
+  </g>
+</svg>

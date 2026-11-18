@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+*.heic
+*.HEIC
+*_extracted/
+config.ini
+daemon.log
+daemon.pid
+.flatpak-builder/
+build-dir/
+repo/
+*.flatpak

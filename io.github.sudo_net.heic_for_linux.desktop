@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=HEIC for Linux
+Comment=Dynamic Apple HEIC wallpapers based on solar elevation
+Comment[de]=Dynamische Apple HEIC-Hintergrundbilder nach Sonnenstand
+Exec=heic-for-linux
+Icon=io.github.sudo_net.heic_for_linux
+Terminal=false
+Type=Application
+Categories=GTK;GNOME;Settings;DesktopSettings;
+StartupWMClass=io.github.sudo_net.heic_for_linux
