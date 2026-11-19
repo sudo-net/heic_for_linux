@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import fcntl
 import sys
 import os
 import time
@@ -13,8 +14,42 @@ gi.require_version('Adw', '1')
 gi.require_version('Gio', '2.0')
 from gi.repository import Gtk, Adw, Gio
 
+COUNTRIES = [
+    ("DE", "Deutschland (DE)"),
+    ("AT", "Österreich (AT)"),
+    ("CH", "Schweiz (CH)"),
+    ("GB", "United Kingdom (GB)"),
+    ("US", "United States (US)"),
+    ("CA", "Canada (CA)"),
+    ("AU", "Australia (AU)"),
+    ("ES", "España (ES)"),
+    ("FR", "France (FR)"),
+    ("IT", "Italia (IT)"),
+    ("NL", "Nederland (NL)"),
+    ("BE", "België / Belgique (BE)"),
+    ("PL", "Polska (PL)"),
+    ("SE", "Sverige (SE)"),
+    ("NO", "Norge (NO)"),
+    ("DK", "Danmark (DK)"),
+    ("FI", "Suomi (FI)"),
+    ("JP", "Japan (JP)"),
+    ("NZ", "New Zealand (NZ)"),
+]
+
+import gettext
+import locale
+
+LOCALE_DIR = "/app/share/locale" if os.path.exists("/.flatpak-info") else os.path.join(os.path.dirname(os.path.abspath(__file__)), "locale")
+try:
+    locale.setlocale(locale.LC_ALL, "")
+except locale.Error:
+    pass
+gettext.bindtextdomain("heic_for_linux", LOCALE_DIR)
+gettext.textdomain("heic_for_linux")
+_ = gettext.gettext
+
 APP_ID = "io.github.sudo_net.heic_for_linux"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 IS_FLATPAK = os.path.exists("/.flatpak-info")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +57,8 @@ DATA_DIR = os.path.expanduser("~/.local/share/heic_for_linux")
 WALLPAPER_STORE = os.path.join(DATA_DIR, "wallpapers")
 CONFIG_FILE = os.path.join(DATA_DIR, "config.ini")
 PID_FILE = os.path.join(DATA_DIR, "daemon.pid")
+LOCK_FILE = os.path.join(DATA_DIR, "daemon.lock")
+STOP_FILE = os.path.join(DATA_DIR, "daemon.stop")
 DAEMON_SCRIPT = "/app/bin/heic-daemon" if IS_FLATPAK else os.path.join(BASE_DIR, "daemon.py")
 ICON_PATH = APP_ID if IS_FLATPAK else os.path.join(BASE_DIR, "icon.svg")
 
@@ -47,7 +84,7 @@ class HeicWindow(Adw.ApplicationWindow):
         os.makedirs(WALLPAPER_STORE, exist_ok=True)
 
         self.set_title(f"HEIC for Linux (v{APP_VERSION})")
-        self.set_default_size(520, 560)
+        self.set_default_size(540, 680)
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header = Adw.HeaderBar()
@@ -72,12 +109,12 @@ class HeicWindow(Adw.ApplicationWindow):
         clamp.set_child(box)
 
         daemon_group = Adw.PreferencesGroup(
-            title="Hintergrunddienst",
+            title=_("Background Service"),
             description="Steuert den automatischen Wechsel von Wallpaper und Dark/Light-Mode."
         )
         box.append(daemon_group)
 
-        self.row_daemon = Adw.ActionRow(title="Automatischer Wechsel", subtitle="Status wird geprüft...")
+        self.row_daemon = Adw.ActionRow(title=_("Automatic Switching"), subtitle=_("Checking status..."))
         daemon_group.add(self.row_daemon)
 
         self.switch_daemon = Gtk.Switch()
@@ -86,8 +123,8 @@ class HeicWindow(Adw.ApplicationWindow):
         self.row_daemon.set_activatable_widget(self.switch_daemon)
 
         self.row_autostart = Adw.ActionRow(
-            title="Beim Systemstart automatisch starten",
-            subtitle="Startet den Hintergrunddienst direkt bei der Anmeldung"
+            title=_("Start automatically on login"),
+            subtitle=_("Starts the background service automatically on login")
         )
         daemon_group.add(self.row_autostart)
 
@@ -97,37 +134,33 @@ class HeicWindow(Adw.ApplicationWindow):
         self.row_autostart.set_activatable_widget(self.switch_autostart)
 
         pref_group = Adw.PreferencesGroup(
-            title="Konfiguration",
+            title=_("Configuration"),
             description="Wähle dein dynamisches Apple HEIC-Hintergrundbild und deinen Standort."
         )
         box.append(pref_group)
 
-        self.row_file = Adw.ActionRow(title="HEIC Hintergrundbild", subtitle="Keine Datei ausgewählt")
+        self.row_file = Adw.ActionRow(title=_("HEIC Wallpaper"), subtitle=_("No file selected"))
         pref_group.add(self.row_file)
 
-        btn_file = Gtk.Button(label="Durchsuchen...")
+        btn_file = Gtk.Button(label=_("Browse..."))
         btn_file.set_valign(Gtk.Align.CENTER)
         btn_file.connect("clicked", self.on_select_file)
         self.row_file.add_suffix(btn_file)
 
-        self.row_zip = Adw.ActionRow(title="Postleitzahl", subtitle="Für die astronomische Sonnenstandsberechnung")
+        self.row_zip = Adw.ActionRow(title=_("Postal Code"), subtitle=_("For astronomical solar position calculation"))
         pref_group.add(self.row_zip)
 
         self.entry_zip = Gtk.Entry()
         self.entry_zip.set_valign(Gtk.Align.CENTER)
-        self.entry_zip.set_max_length(5)
+        self.entry_zip.set_max_length(12)
         self.row_zip.add_suffix(self.entry_zip)
 
-        self.row_country = Adw.ActionRow(title="Ländercode", subtitle="Standard: DE")
+        self.row_country = Adw.ComboRow(title=_("Country"), subtitle=_("For international postal code lookup"))
+        self.row_country.set_model(Gtk.StringList.new([label for _, label in COUNTRIES]))
+        self.row_country.set_selected(0)
         pref_group.add(self.row_country)
 
-        self.entry_country = Gtk.Entry()
-        self.entry_country.set_valign(Gtk.Align.CENTER)
-        self.entry_country.set_max_length(2)
-        self.entry_country.set_text("DE")
-        self.row_country.add_suffix(self.entry_country)
-
-        btn_save = Gtk.Button(label="Einstellungen speichern und anwenden")
+        btn_save = Gtk.Button(label=_("Save and Apply Settings"))
         btn_save.add_css_class("pill")
         btn_save.add_css_class("suggested-action")
         btn_save.connect("clicked", self.on_save_config)
@@ -159,26 +192,26 @@ class HeicWindow(Adw.ApplicationWindow):
         return sys.executable
 
     def get_running_pid(self):
-        if not os.path.exists(PID_FILE):
+        if not os.path.exists(LOCK_FILE):
             return None
         try:
-            with open(PID_FILE, "r") as f:
-                pid = int(f.read().strip())
-            os.kill(pid, 0)
-            return pid
-        except (ValueError, ProcessLookupError, PermissionError):
-            if os.path.exists(PID_FILE):
-                os.remove(PID_FILE)
+            with open(LOCK_FILE, "r+") as f:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(f, fcntl.LOCK_UN)
+                return None
+        except BlockingIOError:
+            return True
+        except OSError:
             return None
 
     def refresh_daemon_status(self):
         pid = self.get_running_pid()
         if pid:
             self.switch_daemon.set_active(True)
-            self.row_daemon.set_subtitle(f"Aktiv im Hintergrund (PID: {pid})")
+            self.row_daemon.set_subtitle(_("Running in background"))
         else:
             self.switch_daemon.set_active(False)
-            self.row_daemon.set_subtitle("Gestoppt")
+            self.row_daemon.set_subtitle(_("Stopped"))
 
     def start_daemon(self):
         if self.get_running_pid():
@@ -200,22 +233,23 @@ class HeicWindow(Adw.ApplicationWindow):
             start_new_session=True
         )
         time.sleep(0.15)
-        self.row_daemon.set_subtitle(f"Aktiv im Hintergrund (PID: {proc.pid})")
+        self.row_daemon.set_subtitle(_("Running in background"))
         return True
 
     def stop_daemon(self):
-        pid = self.get_running_pid()
-        if pid:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(STOP_FILE, "w") as f:
+            f.write("stop")
+        for i in range(15):
+            if not self.get_running_pid():
+                break
+            time.sleep(0.1)
         if os.path.exists(PID_FILE):
             try:
                 os.remove(PID_FILE)
             except OSError:
                 pass
-        self.row_daemon.set_subtitle("Gestoppt")
+        self.row_daemon.set_subtitle(_("Stopped"))
 
     def on_daemon_toggled(self, switch, gparam):
         if switch.get_active():
@@ -264,11 +298,13 @@ class HeicWindow(Adw.ApplicationWindow):
                 if config.has_option("Location", "zip_code"):
                     self.entry_zip.set_text(config.get("Location", "zip_code"))
                 if config.has_option("Location", "country"):
-                    self.entry_country.set_text(config.get("Location", "country"))
+                    saved_country = config.get("Location", "country").strip().upper()
+                    codes = [c for c, _ in COUNTRIES]
+                    self.row_country.set_selected(codes.index(saved_country) if saved_country in codes else 0)
 
     def on_select_file(self, button):
         dialog = Gtk.FileDialog.new()
-        dialog.set_title("HEIC Hintergrundbild auswählen")
+        dialog.set_title(_("Select HEIC Wallpaper"))
 
         filter_heic = Gtk.FileFilter()
         filter_heic.set_name("Apple HEIC Wallpaper (*.heic)")
@@ -301,7 +337,7 @@ class HeicWindow(Adw.ApplicationWindow):
         }
         config["Location"] = {
             "zip_code": self.entry_zip.get_text().strip(),
-            "country": self.entry_country.get_text().strip() or "DE"
+            "country": COUNTRIES[self.row_country.get_selected()][0]
         }
         with open(CONFIG_FILE, "w") as f:
             config.write(f)

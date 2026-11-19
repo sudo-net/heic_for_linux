@@ -1,6 +1,6 @@
 app-id: io.github.sudo_net.heic_for_linux
 runtime: org.gnome.Platform
-runtime-version: '47'
+runtime-version: '51'
 sdk: org.gnome.Sdk
 command: heic-for-linux
 
@@ -32,6 +32,7 @@ modules:
   - name: libde265
     buildsystem: cmake-ninja
     config-opts:
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       - -DCMAKE_BUILD_TYPE=Release
       - -DDISABLE_DEC265=ON
       - -DDISABLE_SHERLOCK265=ON
@@ -61,6 +62,12 @@ modules:
       - install -Dm644 icon.svg /app/share/icons/hicolor/scalable/apps/io.github.sudo_net.heic_for_linux.svg
       - install -Dm644 io.github.sudo_net.heic_for_linux.desktop /app/share/applications/io.github.sudo_net.heic_for_linux.desktop
       - install -Dm644 io.github.sudo_net.heic_for_linux.metainfo.xml /app/share/metainfo/io.github.sudo_net.heic_for_linux.metainfo.xml
+      - |
+        for po in po/*.po; do
+          lang=$(basename "$po" .po)
+          mkdir -p "/app/share/locale/$lang/LC_MESSAGES"
+          msgfmt "$po" -o "/app/share/locale/$lang/LC_MESSAGES/heic_for_linux.mo"
+        done
     sources:
       - type: dir
         path: .

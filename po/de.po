@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: heic_for_linux 0.2.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+msgid "Background Service"
+msgstr "Hintergrunddienst"
+
+msgid "Automatic Switching"
+msgstr "Automatischer Wechsel"
+
+msgid "Checking status..."
+msgstr "Status wird geprüft..."
+
+msgid "Start automatically on login"
+msgstr "Beim Systemstart automatisch starten"
+
+msgid "Starts the background service automatically on login"
+msgstr "Startet den Hintergrunddienst direkt bei der Anmeldung"
+
+msgid "Configuration"
+msgstr "Konfiguration"
+
+msgid "HEIC Wallpaper"
+msgstr "HEIC Hintergrundbild"
+
+msgid "No file selected"
+msgstr "Keine Datei ausgewählt"
+
+msgid "Browse..."
+msgstr "Durchsuchen..."
+
+msgid "Postal Code"
+msgstr "Postleitzahl"
+
+msgid "For astronomical solar position calculation"
+msgstr "Für die astronomische Sonnenstandsberechnung"
+
+msgid "Country"
+msgstr "Land"
+
+msgid "For international postal code lookup"
+msgstr "Für die internationale Postleitzahlen-Suche"
+
+msgid "Save and Apply Settings"
+msgstr "Einstellungen speichern und anwenden"
+
+msgid "Running in background"
+msgstr "Aktiv im Hintergrund"
+
+msgid "Stopped"
+msgstr "Gestoppt"
+
+msgid "Select HEIC Wallpaper"
+msgstr "HEIC Hintergrundbild auswählen"

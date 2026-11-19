@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import fcntl
 import configparser
 import os
 import sys
@@ -18,6 +19,8 @@ DATA_DIR = os.path.expanduser("~/.local/share/heic_for_linux")
 EXTRACTED_DIR = os.path.join(DATA_DIR, "extracted")
 CONFIG_FILE = os.path.join(DATA_DIR, "config.ini")
 PID_FILE = os.path.join(DATA_DIR, "daemon.pid")
+LOCK_FILE = os.path.join(DATA_DIR, "daemon.lock")
+STOP_FILE = os.path.join(DATA_DIR, "daemon.stop")
 LOG_FILE = os.path.join(DATA_DIR, "daemon.log")
 
 
@@ -210,6 +213,16 @@ def load_configuration():
 
 if __name__ == "__main__":
     os.makedirs(DATA_DIR, exist_ok=True)
+    if os.path.exists(STOP_FILE):
+        try:
+            os.remove(STOP_FILE)
+        except OSError:
+            pass
+    _lock_fp = open(LOCK_FILE, "w")
+    try:
+        fcntl.flock(_lock_fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit(0)
     check_already_running()
     signal.signal(signal.SIGTERM, cleanup_pid)
     signal.signal(signal.SIGINT, cleanup_pid)
@@ -224,7 +237,7 @@ if __name__ == "__main__":
     zip_code = my_config.get("Location", "zip_code")
     country = my_config.get("Location", "country", fallback="DE")
 
-    log("--- heic_for_linux v0.1.0: Daemon started ---")
+    log("--- heic_for_linux v0.2.0: Daemon started ---")
 
     final_folder = prepare_wallpaper_images(path)
     metadata = extract_apple_metadata(path)
@@ -253,4 +266,12 @@ if __name__ == "__main__":
             set_gnome_theme(current_alt)
             last_theme_is_light = is_currently_light
 
-        time.sleep(300)
+        for _ in range(300):
+            if os.path.exists(STOP_FILE):
+                try:
+                    os.remove(STOP_FILE)
+                except OSError:
+                    pass
+                log("--- Daemon stopped via GUI ---")
+                cleanup_pid()
+            time.sleep(1)
