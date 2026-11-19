@@ -17,13 +17,14 @@
       HEIC for Linux bringt dynamische macOS HEIC-Hintergrundbilder auf den Linux-Desktop. Es liest die eingebetteten Apple-Sonnenstandsdaten aus .heic-Dateien aus und berechnet Sonnenhöhe und Azimut für deine Postleitzahl komplett offline.
     </p>
     <p>
-      Features in version 0.1.0 (Beta):
+      Key features:
     </p>
     <ul>
       <li>Extracts frames and solar metadata from dynamic Apple HEIC files</li>
-      <li>Calculates local solar elevation and azimuth offline via postal code</li>
+      <li>Calculates local solar elevation and azimuth offline via international postal codes</li>
       <li>East/West hemisphere lock and seasonal winter sun scaling</li>
       <li>Automatically switches GNOME background and Light/Dark theme</li>
+      <li>Multilingual interface (English and German via gettext)</li>
       <li>Currently optimized for the GNOME desktop (support for KDE Plasma planned)</li>
     </ul>
   </description>
@@ -39,6 +40,17 @@
   <url type="bugtracker">https://github.com/sudo-net/heic_for_linux/issues</url>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="0.2.0" date="2026-11-19">
+      <description>
+        <p>Stability and internationalization update:</p>
+        <ul>
+          <li>Fixed daemon start/stop toggle inside the Flatpak sandbox using file locking</li>
+          <li>Added international country selector dropdown for worldwide postal code lookup</li>
+          <li>Added full gettext localization (English default, German translation included)</li>
+          <li>Adjusted default window size so all controls are immediately visible</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-18">
       <description>
         <p>Initial public beta release (0.1.0) with GNOME support, offline solar calculation, seasonal scaling, and autostart daemon.</p>
